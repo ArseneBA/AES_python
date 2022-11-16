@@ -1,37 +1,6 @@
-def block_to_state(input_text):
-    state = [[0 for i in range(4)] for j in range(4)]
-    for col in range(4):
-        for line in range(4):
-            state[line][col] = ord(input_text[4 * col + line])
-    print(state)
-    return state
+class AES:
 
-
-def text_to_states(input_text):
-    text_len = len(input_text)
-    state_list = []
-    nb_state = int(text_len / 128 / 8) if text_len % 128 == 0 else int(text_len / 16) + 1
-    for i in range(nb_state):
-        chunk_text_size = len(input_text[i * 16: (i+1) * 16])
-        if chunk_text_size < 16:
-            nw_text = input_text[i * 16: (i+1) * 16]
-            for car_left in range(int(128/8) - chunk_text_size):
-                nw_text += '0'
-            state_list.append(block_to_state(nw_text))
-        else:
-            state_list.append(block_to_state(input_text[i * 16: (i+1) * 16]))
-    return state_list
-
-
-def add_round_key(state, round_key):
-    for col in range(4):
-        for row in range(4):
-            state[row][col] = state[row][col] ^ round_key[row][col]
-    return state
-
-
-def sub_bytes(state):
-    sbox = [[0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76],
+    S_BOX = [[0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76],
             [0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0],
             [0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15],
             [0x04, 0xc7, 0x23, 0xc3, 0x18, 0x96, 0x05, 0x9a, 0x07, 0x12, 0x80, 0xe2, 0xeb, 0x27, 0xb2, 0x75],
@@ -47,31 +16,103 @@ def sub_bytes(state):
             [0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e],
             [0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf],
             [0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16]]
-    for col in range(4):
-        for row in range(4):
-            state[row][col] = sbox[state[row][col] >> 4 & 0xf][state[row][col] & 0xf]
-    return state
 
+    def __init__(self, data_in = 0x0):
+        self.data_in = data_in
 
-def shift_rows(state):
-    res = [[0 for i in range(4)] for j in range(4)]
-    for row in range(4):
+    @staticmethod
+    def cipher_to_state(cipher):
+        state_test = [[0 for i in range(4)] for j in range(4)]
         for col in range(4):
-            res[row][col] = state[row][(col + row) % 4]
-    return res
+            for row in range(4):
+                state_test[row][col] = cipher >> (((4 * (3 - col) + (3 - row)) * 2) * 4) & 0xff
+        return state_test
 
+    @staticmethod
+    def block_to_state(input_text):
+        state = [[0 for i in range(4)] for j in range(4)]
+        for col in range(4):
+            for line in range(4):
+                state[line][col] = ord(input_text[4 * col + line])
+        print(state)
+        return state
 
-def mix_columns(state):
-    res = [[0 for i in range(4)] for j in range(4)]
-    for row in range(4):
+    def text_to_states(self, input_text):
+        text_len = len(input_text)
+        state_list = []
+        nb_state = int(text_len / 128 / 8) if text_len % 128 == 0 else int(text_len / 16) + 1
+        for i in range(nb_state):
+            chunk_text_size = len(input_text[i * 16: (i+1) * 16])
+            if chunk_text_size < 16:
+                nw_text = input_text[i * 16: (i+1) * 16]
+                for car_left in range(int(128/8) - chunk_text_size):
+                    nw_text += '0'
+                state_list.append(self.block_to_state(nw_text))
+            else:
+                state_list.append(self.block_to_state(input_text[i * 16: (i+1) * 16]))
+        return state_list
+
+    @staticmethod
+    def add_round_key(state, round_key):
+        for col in range(4):
+            for row in range(4):
+                state[row][col] = state[row][col] ^ round_key[row][col]
+        return state
+
+    def sub_word(self, input_4_bytes):
+        output_4_bytes = 0x0
+        for i in range(4):
+            output_4_bytes += self.S_BOX[input_4_bytes >> 4 * i]
+
+    def key_expansion(key):
         pass
-        # Ecrire la multiplication et la multiplication par 3
+
+    def sub_bytes(self, state):
+        for col in range(4):
+            for row in range(4):
+                state[row][col] = self.S_BOX[state[row][col] >> 4 & 0xf][state[row][col] & 0xf]
+        return state
+
+    @staticmethod
+    def shift_rows(state):
+        res = [[0 for i in range(4)] for j in range(4)]
+        for row in range(4):
+            for col in range(4):
+                res[row][col] = state[row][(col + row) % 4]
+        return res
+
+    @staticmethod
+    def multiply_2(a):
+        # On fait un décalage à gauche et le xor avec notre modulo si le bit 7 de la valeur initiale est à un
+        return (a << 1) ^ (0x11b * (a >> 7))
+
+    def multiply_3(self, a):
+        return self.multiply_2(a) ^ a
+
+    def mix_columns(self, state):
+        res = [[0 for i in range(4)] for j in range(4)]
+        for col in range(4):
+            res[0][col] = self.multiply_2(state[0][col]) ^ self.multiply_3(state[1][col]) ^ state[2][col] ^ state[3][col]
+            res[1][col] = state[0][col] ^ self.multiply_2(state[1][col]) ^ self.multiply_3(state[2][col]) ^ state[3][col]
+            res[2][col] = state[0][col] ^ state[1][col] ^ self.multiply_2(state[2][col]) ^ self.multiply_3(state[3][col])
+            res[3][col] = self.multiply_3(state[0][col]) ^ state[1][col] ^ state[2][col] ^ self.multiply_2(state[3][col])
+        return res
+
+    def validation_mix_columns(self):
+        prev_mix_columns = 0x8e53220884749d744b2ed8298cdbefcc
+        res_mix_columns = 0xd84681e866a44d96154db57956c7dd38
+        print(self.mix_columns(self.cipher_to_state(prev_mix_columns)))
+        print(self.cipher_to_state(res_mix_columns))
 
 
-data = "je suis un text."
-state_test = [[00, 1, 2, 3], [10, 11, 12, 13], [20, 21, 22, 23], [30, 31, 32, 33]]
-# round_key = "0000000000000000"
-# # text_to_states("je suis un text. et")
-# print(add_round_key(block_to_state(data), block_to_state(round_key)))
-# print(106 ^ 48)
-print(shift_rows(state_test))
+if __name__ == "__main__":
+    print("yo")
+    data = "je suis un text."
+    state_test = [[00, 1, 2, 3], [10, 11, 12, 13], [20, 21, 22, 23], [30, 31, 32, 33]]
+    # round_key = "0000000000000000"
+    # # text_to_states("je suis un text. et")
+    # print(add_round_key(block_to_state(data), block_to_state(round_key)))
+    # print(106 ^
+    for i in range(3, -1, -1):
+        print(i)
+
