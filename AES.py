@@ -1,3 +1,5 @@
+import numpy as np
+
 class AES:
     S_BOX = [[0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76],
              [0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0],
@@ -21,8 +23,9 @@ class AES:
             0x72, 0xe4, 0xd3, 0xbd, 0x61, 0xc2, 0x9f, 0x25, 0x4a, 0x94, 0x33, 0x66, 0xcc, 0x83, 0x1d, 0x3a,
             0x74, 0xe8, 0xcb, 0x8d]
 
-    def __init__(self, data_in=0x0):
-        self.data_in = data_in
+    def __init__(self, plain=0x0, cipher=0x0):
+        self.plain = plain
+        self.cipher = cipher
 
     @staticmethod
     def cipher_to_state(cipher):
@@ -38,7 +41,6 @@ class AES:
         for col in range(4):
             for line in range(4):
                 state[line][col] = ord(input_text[4 * col + line])
-        print(state)
         return state
 
     def text_to_states(self, input_text):
@@ -54,7 +56,7 @@ class AES:
                 state_list.append(self.block_to_state(nw_text))
             else:
                 state_list.append(self.block_to_state(input_text[i * 16: (i + 1) * 16]))
-        return state_list
+        return state_list, nb_state
 
     @staticmethod
     def add_round_key(state, round_key):
@@ -78,17 +80,24 @@ class AES:
             temp = w[i - 1]
             if i % Nk == 0:
                 # Substitution de S-box
-                temp = [self.S_BOX[b] for b in temp]
+                # temp = [self.S_BOX[b] for b in temp]
+                temp = self.sub_bytes_table(temp)
                 # XOR avec Rcon
                 temp[0] ^= self.Rcon[i // Nk]
             elif Nk > 6 and i % Nk == 4:
                 # Substitution de S-box
-                temp = [self.S_BOX[b] for b in temp]
+                # temp = [self.S_BOX[b] for b in temp]
+                temp = self.sub_bytes_table(temp)
             # XOR avec le mot précédent
             temp = [temp[j] ^ w[i - Nk][j] for j in range(4)]
             w.append(temp)
             i += 1
         return w
+
+    def sub_bytes_table(self, table):
+        for i in range(len(table)):
+            table[i] = self.S_BOX[table[i] >> 4 & 0xf][table[i] & 0xf]
+        return table
 
     def sub_bytes(self, state):
         for col in range(4):
@@ -131,11 +140,29 @@ class AES:
         print(self.mix_columns(self.cipher_to_state(prev_mix_columns)))
         print(self.cipher_to_state(res_mix_columns))
 
+    def encrypt(self, data, key):
+        state_data_table, nb_state = self.text_to_states(data)
+
+        key_table = self.key_expansion(key)
+
+        for j in range(nb_state):
+            state_data_table[j] = self.add_round_key(state_data_table[j], key_table[0:4])
+
+            for i in range(1, 9):
+                state_data_table[j] = self.sub_bytes(state_data_table[j])
+                state_data_table[j] = self.shift_rows(state_data_table[j])
+                state_data_table[j] = self.mix_columns(state_data_table[j])
+                state_data_table[j] = self.add_round_key(state_data_table[j], key_table[i*4: (i+1) * 4])
+
+            state_data_table[j] = self.sub_bytes(state_data_table[j])
+            state_data_table[j] = self.shift_rows(state_data_table[j])
+            state_data_table[j] = self.add_round_key(state_data_table[j], key_table[9*4: 10*4])
+
+        return state_data_table
+
 
 if __name__ == "__main__":
-    print("yo")
     data = "je suis un text."
-    state_test = [[00, 1, 2, 3], [10, 11, 12, 13], [20, 21, 22, 23], [30, 31, 32, 33]]
-    # round_key = "0000000000000000"
-    # # text_to_states("je suis un text. et")
-    # print(add_round_key(block_to_state(data), block_to_state(round_key)))
+    key = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f]
+    example = AES()
+    print(example.encrypt(data, key))
